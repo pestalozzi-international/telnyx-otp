@@ -197,8 +197,14 @@ def receive_email():
 	to_display = _first(payload, "recipient", "To", "to")
 	subject = _first(payload, "Subject", "subject") or ""
 
-	body_text = _first(payload, "stripped__text", "stripped-text", "body__plain", "body-plain") or ""
-	body_html = _first(payload, "stripped__html", "stripped-html", "body__html", "body-html") or ""
+	# Prefer Mailgun's full body-plain/body-html over its stripped-text/
+	# stripped-html variants. "stripped" is Mailgun's own heuristic to
+	# drop quoted/forwarded content, treating it as noise - but for this
+	# app that's often exactly where the useful content is (a forwarded
+	# security alert, a quoted verification link, etc). Only fall back to
+	# the stripped fields if the full ones aren't present at all.
+	body_text = _first(payload, "body__plain", "body-plain", "stripped__text", "stripped-text") or ""
+	body_html = _first(payload, "body__html", "body-html", "stripped__html", "stripped-html") or ""
 
 	date_str = _first(payload, "Date", "date")
 	received_at = None
