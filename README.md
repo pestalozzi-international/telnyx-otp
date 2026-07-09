@@ -35,16 +35,35 @@ flows for several accounts at once.
     or relayed through n8n/Zoho Flow).
   - `POST /api/method/telnyx_otp.api.webhook.receive_email` — Email
     (Mailgun inbound route, relayed through n8n).
-- **OTP Inbox page** (desk — search "OTP Inbox" in the awesomebar):
-  - Filter by account (endpoint) and by channel (SMS / Email).
-  - SMS messages show the code big and monospace with a Copy button.
-  - Email messages show the subject + snippet, with a "View email" button
-    that opens the original formatted HTML in a sandboxed preview (no
-    script execution — safe against anything embedded in the email).
+- **OTP Inbox page** (desk — search "OTP Inbox" in the awesomebar): a real
+  mailbox layout — a scrollable list on the left (filterable by account and
+  channel), a reading pane on the right. Click any row to open it.
+  - SMS rows show the code big and monospace in the reading pane, with a
+    Copy button.
+  - Email rows show the full formatted email in the reading pane (rendered
+    via a sandboxed iframe — no script execution), plus **action link
+    buttons** pulled out of the email when present (see below) so you don't
+    have to hunt through the body for the "Verify your account" / "Reset
+    password" / "Sign in" link.
   - Status badges, live push updates over websockets as new messages
     arrive, and a status sweep every minute in the background.
 - **Duplicate protection** — SMS uses the Telnyx message `id`; email uses
   the `Message-Id` header. Retried webhook deliveries are ignored.
+
+## Verification links, not just codes
+
+A lot of account-security emails send a link instead of a code — "click
+here to verify", "confirm your email", "reset your password", "sign in with
+this link". `extract_action_links()` in `otp_message.py` scans the email's
+HTML for anchor tags whose link text or URL matches one of: verify, confirm,
+activate, reset, unlock, recover, sign in, log in, authenticate, validate,
+"secure your account", "check activity", "magic link". Matches are stored
+in `action_links` (JSON) and rendered as buttons at the top of the reading
+pane — up to 5, deduplicated. If the email is plain-text only, it falls
+back to scanning bare URLs for the same keywords nearby. This runs
+independently of OTP code extraction, so an email can surface a code, a
+link, both, or neither (in which case it still lands in the inbox — you can
+always read the full body in the reading pane).
 
 ## About the payload shapes
 
@@ -58,11 +77,13 @@ nesting, the raw Telnyx `data.payload` shape, then falls back to already-flat.
 
 **Email (Mailgun)** — arrives flatter, as `webhookTrigger.payload` directly
 holding the Mailgun form fields (`sender`, `recipient`, `From`, `To`,
-`Subject`, `stripped-text`, `body-plain`, `Message-Id`, etc). Mailgun's
-field names use hyphens; n8n commonly sanitizes those into double
-underscores when building JSON keys (`body-plain` → `body__plain`,
-`Message-Id` → `Message__Id`). `_unwrap_email()`/`_first()` check both
-spellings for every field, so it works either way.
+`Subject`, `stripped-text`, `body-plain`, `Message-Id`, etc). Depending on
+how your n8n workflow forwards it, field names may keep Mailgun's original
+hyphens (`body-plain`, `Message-Id`) or get sanitized to double underscores
+(`body__plain`, `Message__Id`) — `_unwrap_email()`/`_first()` check both
+spellings for every field, so either works. A real capture from n8n's own
+Webhook node test mode confirmed the plain-hyphen form is what you get when
+forwarding `$json.body` directly — no code changes were needed for that.
 
 In both cases, the safest setup on the n8n side is still to forward the
 original JSON body untouched — fewer moving parts to keep in sync if
