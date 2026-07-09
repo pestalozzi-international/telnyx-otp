@@ -1,3 +1,4 @@
+import json
 import re
 
 import frappe
@@ -15,6 +16,19 @@ CODE_KEYWORD_PATTERN = re.compile(
 LETTER_DASH_PATTERN = re.compile(r"\b[A-Z]{1,3}-\d{4,8}\b")
 DASH_DIGIT_PATTERN = re.compile(r"\b\d{3}[-\s]\d{3}\b")
 BARE_DIGIT_PATTERN = re.compile(r"\b\d{4,8}\b")
+
+# Many auth emails send a link instead of (or alongside) a code - "click to
+# verify", "confirm your email", "reset your password", "sign in with this
+# link". These keywords are checked against the link's anchor text and the
+# URL itself.
+LINK_KEYWORD_PATTERN = re.compile(
+	r"(verify|confirm|activat|reset|unlock|recover|sign[- ]?in|log[- ]?in|"
+	r"authenticat|validate|secure your account|check activity|magic link)",
+	re.IGNORECASE,
+)
+ANCHOR_PATTERN = re.compile(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+TAG_PATTERN = re.compile(r"<[^>]+>")
+URL_PATTERN = re.compile(r"https?://\S+")
 
 
 def extract_otp(text: str, channel: str = "SMS") -> str:
@@ -50,6 +64,38 @@ def extract_otp(text: str, channel: str = "SMS") -> str:
 	return ""
 
 
+def extract_action_links(body_html: str, body_text: str) -> list:
+	"""
+	Pull out likely verification/confirmation/sign-in/reset links from an
+	email. A lot of account-security emails send a link rather than a code -
+	this is what surfaces those prominently in the inbox instead of leaving
+	the user to dig through the full rendered body.
+	"""
+	links = []
+
+	if body_html:
+		for href, inner in ANCHOR_PATTERN.findall(body_html):
+			anchor_text = " ".join(TAG_PATTERN.sub(" ", inner).split())
+			haystack = f"{anchor_text} {href}"
+			if LINK_KEYWORD_PATTERN.search(haystack):
+				links.append({"text": anchor_text or href, "url": href})
+
+	if not links and body_text:
+		for url in URL_PATTERN.findall(body_text):
+			idx = body_text.find(url)
+			context = body_text[max(0, idx - 60):idx]
+			if LINK_KEYWORD_PATTERN.search(context) or LINK_KEYWORD_PATTERN.search(url):
+				links.append({"text": url, "url": url.rstrip(">).,")})
+
+	seen = set()
+	deduped = []
+	for link in links:
+		if link["url"] not in seen:
+			seen.add(link["url"])
+			deduped.append(link)
+	return deduped[:5]
+
+
 def get_settings():
 	return frappe.get_cached_doc("Telnyx OTP Settings")
 
@@ -63,10 +109,16 @@ class OTPMessage(Document):
 			source_text = self.message or self.body_text or ""
 			self.otp_code = extract_otp(source_text, self.channel)
 
+		if self.channel == "Email" and not self.action_links:
+			links = extract_action_links(self.body_html, self.body_text)
+			self.action_links = json.dumps(links) if links else ""
+
 		if not self.status:
 			# No code extracted (e.g. a security-alert email with no OTP in
-			# it) -> it's just informational, not something to track through
-			# a used/expired lifecycle.
+			# it, or one that only carries a verification link) -> it's
+			# informational, not something to track through a used/expired
+			# lifecycle. The link itself doesn't expire in our system either
+			# way - the provider's own link expiry still applies.
 			self.status = "New" if self.otp_code else "Info"
 
 
@@ -85,6 +137,7 @@ def notify_new_otp(doc, method=None):
 			"message": doc.message,
 			"received_at": str(doc.received_at) if doc.received_at else None,
 			"status": doc.status,
+			"has_links": bool(doc.action_links),
 		},
 	)
 
@@ -113,8 +166,9 @@ def update_otp_statuses():
 	nobody has the inbox page open:
 	  - Copied -> Used, `copied_grace_seconds` after copied_at
 	  - New -> Expired, `expiry_minutes` after received_at
-	'Info' rows (no code was ever found, e.g. a plain security-alert email)
-	are left alone - there's nothing to expire or use.
+	'Info' rows (no code was ever found, e.g. a plain security-alert email
+	or a link-only email) are left alone - there's nothing to expire or use
+	on our side.
 	"""
 	settings = get_settings()
 	expiry_minutes = settings.expiry_minutes or 10

@@ -15,6 +15,7 @@
   "message",
   "body_html",
   "body_text",
+  "action_links",
   "provider",
   "event_id",
   "received_at",
@@ -96,6 +97,15 @@
    "fieldname": "body_text",
    "fieldtype": "Text",
    "label": "Email Body (Plain Text)"
+  },
+  {
+   "depends_on": "eval:doc.channel=='Email'",
+   "description": "Auto-extracted verify/confirm/sign-in/reset links found in the email.",
+   "fieldname": "action_links",
+   "fieldtype": "Code",
+   "label": "Action Links",
+   "options": "JSON",
+   "read_only": 1
   },
   {
    "default": "Telnyx",
