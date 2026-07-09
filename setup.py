@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 with open("requirements.txt") as f:
-	install_requires = f.read().strip().split("\n")
+	install_requires = [line.strip() for line in f if line.strip()]
 
 setup(
 	name="telnyx_otp",
 	version="0.1.0",
-	description="Receives inbound SMS webhooks (Telnyx, relayed via n8n/Zoho Flow) and displays OTP codes in a live inbox, per-number, with used/expired tracking",
+	description="Receives inbound SMS (Telnyx) and email (Mailgun) webhooks, both relayed via n8n, and displays them in a live per-account inbox with used/expired tracking",
 	author="Pestalozzi International",
 	author_email="you@example.com",
 	packages=find_packages(),
