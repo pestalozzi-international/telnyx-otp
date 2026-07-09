@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "creation": "2026-07-09 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "expiry_minutes",
+  "copied_grace_seconds"
+ ],
+ "fields": [
+  {
+   "default": "10",
+   "description": "How many minutes after receipt an OTP is considered expired.",
+   "fieldname": "expiry_minutes",
+   "fieldtype": "Int",
+   "label": "OTP Expiry (minutes)",
+   "reqd": 1
+  },
+  {
+   "default": "60",
+   "description": "How many seconds after copying an OTP it flips to 'Used'.",
+   "fieldname": "copied_grace_seconds",
+   "fieldtype": "Int",
+   "label": "Used Grace Period (seconds)",
+   "reqd": 1
+  }
+ ],
+ "index_web_view": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Telnyx OTP",
+ "name": "Telnyx OTP Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

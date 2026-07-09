@@ -1,0 +1,14 @@
+include MANIFEST.in
+include requirements.txt
+recursive-include telnyx_otp *.css
+recursive-include telnyx_otp *.csv
+recursive-include telnyx_otp *.html
+recursive-include telnyx_otp *.ico
+recursive-include telnyx_otp *.js
+recursive-include telnyx_otp *.json
+recursive-include telnyx_otp *.md
+recursive-include telnyx_otp *.png
+recursive-include telnyx_otp *.py
+recursive-include telnyx_otp *.svg
+recursive-include telnyx_otp *.txt
+recursive-exclude telnyx_otp *.pyc
