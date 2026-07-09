@@ -1,0 +1,57 @@
+{
+ "content": "[{\"id\":\"otphdr1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Verification Inbox</b></span>\",\"col\":12}},{\"id\":\"otppara1\",\"type\":\"paragraph\",\"data\":{\"text\":\"<p>To use this service, have people send to:</p><ul><li><b>SMS</b> \\u2192 +1 618 272 1234</li><li><b>Email</b> \\u2192 account@verify.pestalozzi.international (send directly, or forward/CC)</li></ul><p>Anything sent there shows up below live, with the OTP code or verification link pulled out automatically. Add or manage numbers and addresses any time in <b>Monitored Endpoint</b>.</p>\",\"col\":12}},{\"id\":\"otpspacer1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"otphdr2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\",\"col\":12}},{\"id\":\"otpsc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"OTP Inbox\",\"col\":3}},{\"id\":\"otpsc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Monitored Endpoint\",\"col\":3}},{\"id\":\"otpsc3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"OTP Message\",\"col\":3}},{\"id\":\"otpsc4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Telnyx OTP Settings\",\"col\":3}}]",
+ "creation": "2026-07-09 20:16:50.952283",
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "sms",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Verification Inbox",
+ "links": [],
+ "modified": "2026-07-09 20:16:50.952283",
+ "modified_by": "Administrator",
+ "module": "Telnyx OTP",
+ "name": "Verification Inbox",
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "label": "OTP Inbox",
+   "link_to": "otp-inbox",
+   "type": "Page"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Monitored Endpoint",
+   "link_to": "Monitored Endpoint",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "OTP Message",
+   "link_to": "OTP Message",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "label": "Telnyx OTP Settings",
+   "link_to": "Telnyx OTP Settings",
+   "type": "DocType"
+  }
+ ],
+ "title": "Verification Inbox"
+}
