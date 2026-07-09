@@ -1,5 +1,6 @@
 import json
 from email.utils import parsedate_to_datetime
+from zoneinfo import ZoneInfo
 
 import frappe
 from frappe.utils import now_datetime, get_datetime
@@ -31,6 +32,27 @@ def _parse_body() -> dict:
 		return json.loads(raw) if raw else {}
 	except Exception:
 		frappe.throw("Invalid JSON body")
+
+
+def _to_naive_system_time(dt):
+	"""
+	MySQL's DATETIME column is timezone-naive and Frappe always stores
+	datetimes as naive values in the site's system timezone. External
+	payloads, though, often carry an explicit UTC offset (Telnyx:
+	"+00:00", Mailgun/email Date headers: "+05:30") and/or microseconds -
+	MySQL rejects a string like '2026-07-09 19:12:21+05:30' outright
+	(error 1292), which is what caused the two webhook 500s. This
+	converts any timezone-aware datetime to the site's system timezone
+	and strips the tzinfo before it ever reaches the database.
+	"""
+	if dt is None or dt.tzinfo is None:
+		return dt
+	try:
+		tz_name = frappe.utils.get_system_timezone()
+		tz = ZoneInfo(tz_name)
+	except Exception:
+		tz = ZoneInfo("UTC")
+	return dt.astimezone(tz).replace(tzinfo=None)
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +116,7 @@ def receive():
 
 	received_at = payload.get("received_at")
 	received_at = get_datetime(received_at) if received_at else now_datetime()
+	received_at = _to_naive_system_time(received_at)
 
 	if event_id and frappe.db.exists("OTP Message", {"event_id": event_id}):
 		return {"status": "duplicate", "event_id": event_id}
@@ -185,6 +208,7 @@ def receive_email():
 		except (TypeError, ValueError):
 			received_at = None
 	received_at = received_at or now_datetime()
+	received_at = _to_naive_system_time(received_at)
 
 	if frappe.db.exists("OTP Message", {"event_id": event_id}):
 		return {"status": "duplicate", "event_id": event_id}
