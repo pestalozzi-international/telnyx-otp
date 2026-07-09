@@ -72,6 +72,7 @@ class OTPInbox {
 			.otp-detail-code { font-size: 32px; font-weight: 700; font-family: monospace; letter-spacing: 1px; }
 			.otp-detail-subject { font-size: 18px; font-weight: 600; }
 			.otp-detail-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+			.otp-detail-message { margin-top: 14px; padding: 12px 14px; background: var(--control-bg); border-radius: 6px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 			.otp-action-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 			.otp-action-links a.btn { text-decoration: none; }
 			.otp-email-frame { width: 100%; height: 55vh; border: 1px solid var(--border-color); border-radius: 6px; background: #fff; margin-top: 14px; }
@@ -273,10 +274,17 @@ class OTPInbox {
 				}
 
 				if (isEmail) {
+					// Always show the full formatted email, whether or not a
+					// code/link was extracted from it - these often carry
+					// verification links rather than codes, so the reading
+					// pane needs to be readable end-to-end regardless.
 					const body = doc.body_html || `<pre>${frappe.utils.escape_html(doc.body_text || "")}</pre>`;
 					html += `<iframe class="otp-email-frame" sandbox="allow-popups" srcdoc="${frappe.utils.escape_html(body)}"></iframe>`;
-				} else if (!doc.otp_code) {
-					html += `<div style="margin-top:10px;">${frappe.utils.escape_html(doc.message || "")}</div>`;
+				} else {
+					// Always show the full SMS text too, even when a code
+					// was found - the code+copy button is a shortcut, not a
+					// replacement for reading the actual message.
+					html += `<div class="otp-detail-message">${frappe.utils.escape_html(doc.message || "")}</div>`;
 				}
 
 				this.$detail.html(html);
