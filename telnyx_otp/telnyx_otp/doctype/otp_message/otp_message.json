@@ -64,26 +64,30 @@
   {
    "fieldname": "from_display",
    "fieldtype": "Data",
-   "label": "From"
+   "label": "From",
+   "ignore_xss_filter": 1
   },
   {
    "fieldname": "to_display",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "To"
+   "label": "To",
+   "ignore_xss_filter": 1
   },
   {
    "depends_on": "eval:doc.channel=='Email'",
    "fieldname": "subject",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Subject"
+   "label": "Subject",
+   "ignore_xss_filter": 1
   },
   {
    "fieldname": "message",
    "fieldtype": "Small Text",
    "in_list_view": 1,
-   "label": "Message / Snippet"
+   "label": "Message / Snippet",
+   "ignore_xss_filter": 1
   },
   {
    "depends_on": "eval:doc.channel=='Email'",
@@ -96,7 +100,8 @@
    "depends_on": "eval:doc.channel=='Email'",
    "fieldname": "body_text",
    "fieldtype": "Text",
-   "label": "Email Body (Plain Text)"
+   "label": "Email Body (Plain Text)",
+   "ignore_xss_filter": 1
   },
   {
    "depends_on": "eval:doc.channel=='Email'",
