@@ -1,31 +1,59 @@
 import json
+from email.utils import parsedate_to_datetime
 
 import frappe
 from frappe.utils import now_datetime, get_datetime
 
 
-def _unwrap(body: dict) -> dict:
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def _get_or_create_endpoint(endpoint_type: str, value: str):
+	if not value:
+		return None
+	if not frappe.db.exists("Monitored Endpoint", value):
+		frappe.get_doc(
+			{
+				"doctype": "Monitored Endpoint",
+				"endpoint_type": endpoint_type,
+				"value": value,
+				"label": value,
+				"is_active": 1,
+			}
+		).insert(ignore_permissions=True)
+	return value
+
+
+def _parse_body() -> dict:
+	try:
+		raw = frappe.request.get_data(as_text=True)
+		return json.loads(raw) if raw else {}
+	except Exception:
+		frappe.throw("Invalid JSON body")
+
+
+# ---------------------------------------------------------------------------
+# SMS (Telnyx, relayed via n8n or Zoho Flow)
+# ---------------------------------------------------------------------------
+
+def _unwrap_sms(body: dict) -> dict:
 	"""
-	Different relays wrap the actual Telnyx SMS event differently. Handle all
-	of these and return the inner dict that contains from/to/text/id/etc.
+	Different relays wrap the actual Telnyx SMS event differently.
 
-	1) n8n, when the flow re-sends the exact body it received from a
-	   previous webhook node, often nests it one level under "body":
-	   {"body": {...same as case 2 or 3...}}
-
+	1) n8n, when a workflow forwards the whole item it received from a prior
+	   Webhook node instead of just its `body`, nests everything one level
+	   deeper under "body".
 	2) Zoho-Flow-relayed shape:
 	   {"webhookTrigger": {"payload": {"data": {"payload": {...}}}}}
-
 	3) Raw Telnyx webhook shape:
 	   {"data": {"event_type": ..., "payload": {...}}}
-
 	4) Already-unwrapped payload:
 	   {"from": {...}, "to": [...], "text": "...", ...}
 
-	If your n8n workflow instead flattens/renames fields with a Set/Edit
-	Fields node before forwarding, adjust this function to match whatever
-	shape actually arrives - the safest option is to configure n8n's HTTP
-	Request node to forward the original JSON body untouched.
+	If your n8n workflow flattens/renames fields with a Set/Edit Fields node
+	before forwarding, adjust this to match - the safest setup is to have
+	n8n forward the original JSON body untouched.
 	"""
 	if isinstance(body.get("body"), dict):
 		body = body["body"]
@@ -45,38 +73,16 @@ def _unwrap(body: dict) -> dict:
 	return body
 
 
-def _get_or_create_phone_number(number: str):
-	if not number:
-		return None
-	if not frappe.db.exists("OTP Phone Number", number):
-		frappe.get_doc(
-			{
-				"doctype": "OTP Phone Number",
-				"phone_number": number,
-				"label": number,
-				"is_active": 1,
-			}
-		).insert(ignore_permissions=True)
-	return number
-
-
 @frappe.whitelist(allow_guest=True)
 def receive():
 	"""
-	Webhook target. Point Telnyx (or an n8n / Zoho Flow relay in front of it)
-	at:
+	SMS webhook target (Telnyx, direct or relayed via n8n/Zoho Flow). Point
+	your provider/relay at:
 
 		https://<your-site>/api/method/telnyx_otp.api.webhook.receive
-
-	Accepts the raw JSON body of the request.
 	"""
-	try:
-		raw = frappe.request.get_data(as_text=True)
-		body = json.loads(raw) if raw else {}
-	except Exception:
-		frappe.throw("Invalid JSON body")
-
-	payload = _unwrap(body)
+	body = _parse_body()
+	payload = _unwrap_sms(body)
 
 	event_id = payload.get("id")
 	text = payload.get("text") or ""
@@ -89,22 +95,120 @@ def receive():
 	received_at = payload.get("received_at")
 	received_at = get_datetime(received_at) if received_at else now_datetime()
 
-	# Idempotency: if we've already stored this event, don't duplicate it.
-	if event_id and frappe.db.exists("SMS OTP", {"event_id": event_id}):
+	if event_id and frappe.db.exists("OTP Message", {"event_id": event_id}):
 		return {"status": "duplicate", "event_id": event_id}
 
-	phone_number = _get_or_create_phone_number(to_number)
+	endpoint = _get_or_create_endpoint("SMS", to_number)
 
 	doc = frappe.get_doc(
 		{
-			"doctype": "SMS OTP",
+			"doctype": "OTP Message",
+			"channel": "SMS",
 			"event_id": event_id,
-			"from_number": from_number,
-			"to_number": to_number,
-			"phone_number": phone_number,
+			"from_display": from_number,
+			"to_display": to_number,
+			"endpoint": endpoint,
 			"message": text,
 			"received_at": received_at,
 			"provider": "Telnyx",
+			"raw_payload": json.dumps(body, indent=2),
+		}
+	)
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+
+	return {"status": "ok", "name": doc.name, "otp_code": doc.otp_code}
+
+
+# ---------------------------------------------------------------------------
+# Email (Mailgun inbound routes, relayed via n8n)
+# ---------------------------------------------------------------------------
+
+def _unwrap_email(body: dict) -> dict:
+	"""
+	n8n's default HTTP Request/Webhook combo tends to arrive as:
+	{"webhookTrigger": {"payload": {<mailgun fields, flat>}}}
+
+	Mailgun's own field names use hyphens ('body-plain', 'Message-Id',
+	'X-Notifications'); n8n commonly sanitizes those to double underscores
+	when it turns them into JSON keys ('body__plain', 'Message__Id',
+	'X__Notifications'). We check both spellings for every field.
+	"""
+	if isinstance(body.get("body"), dict):
+		body = body["body"]
+
+	if "webhookTrigger" in body:
+		try:
+			body = body["webhookTrigger"]["payload"]
+		except (KeyError, TypeError):
+			pass
+	elif isinstance(body.get("payload"), dict):
+		body = body["payload"]
+
+	return body
+
+
+def _first(payload: dict, *keys):
+	for key in keys:
+		value = payload.get(key)
+		if value:
+			return value
+	return None
+
+
+@frappe.whitelist(allow_guest=True)
+def receive_email():
+	"""
+	Email webhook target (Mailgun inbound route, relayed via n8n). Point your
+	n8n workflow's outbound HTTP node at:
+
+		https://<your-site>/api/method/telnyx_otp.api.webhook.receive_email
+	"""
+	body = _parse_body()
+	payload = _unwrap_email(body)
+
+	message_id = _first(payload, "Message__Id", "Message-Id", "message_id")
+	event_id = (message_id or "").strip("<>") or frappe.generate_hash(length=16)
+
+	from_display = _first(payload, "From", "from", "sender")
+	to_display = _first(payload, "recipient", "To", "to")
+	subject = _first(payload, "Subject", "subject") or ""
+
+	body_text = _first(payload, "stripped__text", "stripped-text", "body__plain", "body-plain") or ""
+	body_html = _first(payload, "stripped__html", "stripped-html", "body__html", "body-html") or ""
+
+	date_str = _first(payload, "Date", "date")
+	received_at = None
+	if date_str:
+		try:
+			received_at = parsedate_to_datetime(date_str)
+		except (TypeError, ValueError):
+			received_at = None
+	received_at = received_at or now_datetime()
+
+	if frappe.db.exists("OTP Message", {"event_id": event_id}):
+		return {"status": "duplicate", "event_id": event_id}
+
+	endpoint = _get_or_create_endpoint("Email", to_display)
+
+	# Snippet for list views / the inbox card: first ~200 chars of the
+	# plain-text body, collapsed to one line.
+	snippet = " ".join(body_text.split())[:200]
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "OTP Message",
+			"channel": "Email",
+			"event_id": event_id,
+			"from_display": from_display,
+			"to_display": to_display,
+			"endpoint": endpoint,
+			"subject": subject,
+			"message": snippet,
+			"body_text": body_text,
+			"body_html": body_html,
+			"received_at": received_at,
+			"provider": "Mailgun",
 			"raw_payload": json.dumps(body, indent=2),
 		}
 	)

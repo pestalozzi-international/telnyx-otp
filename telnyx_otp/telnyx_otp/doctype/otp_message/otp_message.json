@@ -1,0 +1,174 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-07-09 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "otp_code",
+  "status",
+  "channel",
+  "endpoint",
+  "from_display",
+  "to_display",
+  "subject",
+  "message",
+  "body_html",
+  "body_text",
+  "provider",
+  "event_id",
+  "received_at",
+  "copied_at",
+  "is_used",
+  "is_expired",
+  "raw_payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "otp_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "OTP Code",
+   "bold": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "New\nCopied\nUsed\nExpired\nInfo",
+   "default": "New",
+   "read_only": 1
+  },
+  {
+   "default": "SMS",
+   "fieldname": "channel",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Channel",
+   "options": "SMS\nEmail",
+   "read_only": 1
+  },
+  {
+   "fieldname": "endpoint",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Endpoint (account)",
+   "options": "Monitored Endpoint"
+  },
+  {
+   "fieldname": "from_display",
+   "fieldtype": "Data",
+   "label": "From"
+  },
+  {
+   "fieldname": "to_display",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "To"
+  },
+  {
+   "depends_on": "eval:doc.channel=='Email'",
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subject"
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Message / Snippet"
+  },
+  {
+   "depends_on": "eval:doc.channel=='Email'",
+   "fieldname": "body_html",
+   "fieldtype": "Code",
+   "label": "Email Body (HTML)",
+   "options": "HTML"
+  },
+  {
+   "depends_on": "eval:doc.channel=='Email'",
+   "fieldname": "body_text",
+   "fieldtype": "Text",
+   "label": "Email Body (Plain Text)"
+  },
+  {
+   "default": "Telnyx",
+   "fieldname": "provider",
+   "fieldtype": "Select",
+   "label": "Provider",
+   "options": "Telnyx\nMailgun\nOther"
+  },
+  {
+   "fieldname": "event_id",
+   "fieldtype": "Data",
+   "label": "Event ID",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "received_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Received At"
+  },
+  {
+   "fieldname": "copied_at",
+   "fieldtype": "Datetime",
+   "label": "Copied At",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_used",
+   "fieldtype": "Check",
+   "label": "Used",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_expired",
+   "fieldtype": "Check",
+   "label": "Expired",
+   "read_only": 1
+  },
+  {
+   "fieldname": "raw_payload",
+   "fieldtype": "Code",
+   "label": "Raw Payload",
+   "options": "JSON"
+  }
+ ],
+ "index_web_view": 0,
+ "links": [],
+ "modified": "2026-07-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Telnyx OTP",
+ "name": "OTP Message",
+ "naming_rule": "By fieldname",
+ "autoname": "hash",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "received_at",
+ "sort_order": "DESC",
+ "title_field": "otp_code",
+ "track_changes": 1
+}
