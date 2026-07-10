@@ -27,3 +27,12 @@ scheduler_events = {
 		]
 	}
 }
+
+# Ships the "Verification Inbox Admin" role with the app, so a fresh install
+# has it available immediately (see fixtures/role.json). It's granted read/
+# write/create/delete on OTP Message, Monitored Endpoint, and Telnyx OTP
+# Settings (see each doctype's permissions), plus access to the OTP Inbox
+# page and the Verification Inbox workspace, alongside System Manager.
+fixtures = [
+	{"doctype": "Role", "filters": [["name", "=", "Verification Inbox Admin"]]}
+]
