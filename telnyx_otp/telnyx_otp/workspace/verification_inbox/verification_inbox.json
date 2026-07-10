@@ -22,6 +22,9 @@
  "roles": [
   {
    "role": "System Manager"
+  },
+  {
+   "role": "Verification Inbox Admin"
   }
  ],
  "sequence_id": 0,
