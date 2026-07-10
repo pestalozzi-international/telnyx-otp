@@ -11,7 +11,14 @@
  "name": "otp-inbox",
  "owner": "Administrator",
  "page_name": "otp-inbox",
- "roles": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Verification Inbox Admin"
+  }
+ ],
  "standard": "Yes",
  "system_page": 0,
  "title": "OTP Inbox"
